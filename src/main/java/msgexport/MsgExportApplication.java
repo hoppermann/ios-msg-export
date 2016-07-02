@@ -4,9 +4,6 @@ import freemarker.template.Configuration;
 import freemarker.template.Template;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -18,19 +15,18 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-@SpringBootApplication
 public class MsgExportApplication
-  implements CommandLineRunner
 {
   private static final Logger LOGGER = LoggerFactory.getLogger(MsgExportApplication.class);
 
   public static void main(String[] args)
+    throws Exception
   {
-    SpringApplication.run(MsgExportApplication.class, args);
+    MsgExportApplication msgExportApplication = new MsgExportApplication();
+    msgExportApplication.export(args);
   }
 
-  @Override
-  public void run(String... args)
+  public void export(String[] args)
     throws Exception
   {
     // load sqlite driver
@@ -66,6 +62,8 @@ public class MsgExportApplication
 
       if(!messages.isEmpty())
       {
+        LOGGER.info(String.format("export %s", contact.getName()));
+
         File contactBaseDir = new File(destDir, contact.getName());
         contactBaseDir.mkdirs();
 
