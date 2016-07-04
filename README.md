@@ -21,10 +21,14 @@ and at Windows (not verified)
 Usage
 -----
 
-    java -cp <lib> msgexport.MsgExportApplication backup-dir [export-dir]
+    java -cp <lib> msgexport.MsgExportApplication backup-dir country-code area-code [export-dir]
 
-        backup-dir - directory of the unportected backup
-        export-dir - directory for the export files (optional)
+        backup-dir   - directory of the unportected backup
+        country-code - country code for phone numbers, eg. 1 for US or 49 for germany
+        area-code    - area code for phone numbers
+        export-dir   - directory for the export files (optional)
+
+The ``country-code`` and ``area-code`` are needed to rectify the telephone numbers from the contact database.
 
 Issues
 ======

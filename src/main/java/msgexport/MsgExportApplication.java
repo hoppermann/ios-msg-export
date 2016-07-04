@@ -23,7 +23,14 @@ public class MsgExportApplication
     throws Exception
   {
     MsgExportApplication msgExportApplication = new MsgExportApplication();
-    msgExportApplication.export(args);
+    try
+    {
+      msgExportApplication.export(args);
+    }
+    catch(Exception e)
+    {
+      LOGGER.error(e.getMessage(), e);
+    }
   }
 
   public void export(String[] args)
@@ -32,9 +39,9 @@ public class MsgExportApplication
     // load sqlite driver
     Class.forName("org.sqlite.JDBC");
 
-    if(args.length < 1)
+    if(args.length < 3)
     {
-      throw new IllegalArgumentException("missing iOS backup directory");
+      throw new IllegalArgumentException("missing application parameter. usage: backup-dir country-code area-code [export-dir]");
     }
 
     // iOS backup directory
@@ -44,7 +51,10 @@ public class MsgExportApplication
       throw new IllegalArgumentException(String.format("can not read user backup directory '%s'", args[0]));
     }
 
-    File destDir = new File(args.length > 1 ? args[1] : ".");
+    String countryCode = args[1];
+    String areaCode = args[2];
+
+    File destDir = new File(args.length > 3 ? args[3] : ".");
     if(!(destDir.exists() && destDir.isDirectory() && destDir.canWrite()))
     {
       throw new IllegalArgumentException(String.format("can not to write dest directory '%s'", args[1]));
@@ -56,7 +66,9 @@ public class MsgExportApplication
     cfg.setDefaultEncoding("UTF-8");
     Template template = cfg.getTemplate("ioback.ftl");
 
-    for(Contact contact : ContactBuilder.readContacts(backupDir))
+    ContactBuilder contactBuilder = new ContactBuilder(countryCode, areaCode);
+
+    for(Contact contact : contactBuilder.readContacts(backupDir))
     {
       List<Message> messages = MessageBuilder.readMessages(backupDir, contact);
 

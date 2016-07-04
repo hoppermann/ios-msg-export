@@ -20,7 +20,16 @@ public class ContactBuilder
   private static final Logger LOGGER = LoggerFactory.getLogger(ContactBuilder.class);
   private static final String CONTACT_DB = Util.sha1("HomeDomain-Library/AddressBook/AddressBook.sqlitedb");
 
-  public static Set<Contact> readContacts(File backupDir)
+  private final String countryPhoneCode;
+  private final String areaPhoneCode;
+
+  public ContactBuilder(String countryPhoneCode, String areaPhoneCode)
+  {
+    this.countryPhoneCode = countryPhoneCode;
+    this.areaPhoneCode = areaPhoneCode;
+  }
+
+  public Set<Contact> readContacts(File backupDir)
     throws SQLException
   {
     File contactBackupDB = new File(backupDir, CONTACT_DB);
@@ -71,7 +80,7 @@ public class ContactBuilder
     }
   }
 
-  private static void addPhoneNumber(String value, LongConsumer applyPhoneNumberFunction)
+  private void addPhoneNumber(String value, LongConsumer applyPhoneNumberFunction)
   {
     value = value.trim();
 
@@ -82,13 +91,13 @@ public class ContactBuilder
     else if(!value.isEmpty() && !value.startsWith("0") && Character.isDigit(value.charAt(0)))
     {
       // local number
-      value = "0531" + value;
+      value = areaPhoneCode + value;
     }
 
     if(value.startsWith("0"))
     {
       // prefix county number
-      value = "49" + value.substring(1);
+      value = countryPhoneCode + value.substring(1);
     }
 
     value = cleanup(value, " ");
