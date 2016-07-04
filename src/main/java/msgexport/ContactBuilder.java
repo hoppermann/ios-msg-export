@@ -53,20 +53,26 @@ public class ContactBuilder
               String last = resultSet.getString("Last");
               String value = resultSet.getString("Value");
 
-              String fullname = first + " " + last;
-
-              contactMap.putIfAbsent(fullname, new Contact(fullname));
-
-              Contact contact = contactMap.get(fullname);
-              if(value.contains("@"))
+              String fullname = createFullname(first, last);
+              if(fullname != null)
               {
-                // email
-                contact.addEmail(value);
+                contactMap.putIfAbsent(fullname, new Contact(fullname));
+
+                Contact contact = contactMap.get(fullname);
+                if(value.contains("@"))
+                {
+                  // email
+                  contact.addEmail(value);
+                }
+                else if(!value.contains("http") && !value.contains("itunes"))
+                {
+                  // hopefully a phone number
+                  addPhoneNumber(value, contact::addPhone);
+                }
               }
-              else if(!value.contains("http") && !value.contains("itunes"))
+              else
               {
-                // hopefully a phone number
-                addPhoneNumber(value, contact::addPhone);
+                LOGGER.debug("contact has no name");
               }
             }
           }
@@ -77,6 +83,26 @@ public class ContactBuilder
     else
     {
       throw new IllegalArgumentException(String.format("can not read from %s", contactBackupDB.getAbsolutePath()));
+    }
+  }
+
+  private static String createFullname(String first, String last)
+  {
+    if(first != null && !first.isEmpty() && last != null && !last.isEmpty())
+    {
+      return first + " " + last;
+    }
+    else if(first != null && !first.isEmpty())
+    {
+      return first;
+    }
+    else if(last != null && !last.isEmpty())
+    {
+      return last;
+    }
+    else
+    {
+      return null;
     }
   }
 
