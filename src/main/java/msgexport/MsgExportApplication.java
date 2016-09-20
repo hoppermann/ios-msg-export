@@ -1,10 +1,17 @@
 package msgexport;
 
+import com.drew.imaging.ImageMetadataReader;
+import com.drew.imaging.ImageProcessingException;
+import com.drew.metadata.Metadata;
+import com.drew.metadata.exif.ExifIFD0Directory;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
+import org.imgscalr.Scalr;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -13,11 +20,14 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 public class MsgExportApplication
 {
   private static final Logger LOGGER = LoggerFactory.getLogger(MsgExportApplication.class);
+
+  private static final int IMAGE_MAX_WIDTH = 600;
 
   public static void main(String[] args)
     throws Exception
@@ -124,19 +134,53 @@ public class MsgExportApplication
         {
           String sha1 = Util.sha1(attachmentFilename.replace("~/Library/", "MediaDomain-Library/"));
 
-          File imageFile = new File(backupDir, sha1);
+          File imageFile = new File(backupDir, Util.createFilename(sha1));
           if(imageFile.exists() && imageFile.isFile() && imageFile.canRead())
           {
             try
             {
-              // todo adjust images
-              String imageFilename = getImageFilename(message, sha1);
-              Files.copy(imageFile.toPath(), new File(imageOutputDir, imageFilename).toPath(), StandardCopyOption.REPLACE_EXISTING);
-              message.setImage(imageOutputDir.getName() + "/" + imageFilename);
+              ImageData imageData = getImageData(imageFile);
+              if(imageData != null)
+              {
+                String imageFilename = getImageFilename(message, sha1);
+
+                if(imageData.getImage().getWidth() <= IMAGE_MAX_WIDTH && imageData.getOrientation() == 1)
+                {
+                  Files.copy(imageFile.toPath(), new File(imageOutputDir, imageFilename).toPath(), StandardCopyOption.REPLACE_EXISTING);
+                }
+                else
+                {
+                  // todo copy image with an adjust size and orientation
+
+                  BufferedImage image = imageData.getImage();
+
+                  for(Scalr.Rotation rotation : calcRotations(imageData.getOrientation()))
+                  {
+                    image = Scalr.rotate(image, rotation);
+                  }
+                  if(imageData.getImage().getWidth() > IMAGE_MAX_WIDTH)
+                  {
+                    image = Scalr.resize(image, Scalr.Method.ULTRA_QUALITY, Scalr.Mode.FIT_TO_WIDTH, IMAGE_MAX_WIDTH);
+                  }
+
+                  ImageIO.write(image, getImageInformalName(message.getAttachmentMimetype()), new File(imageOutputDir, imageFilename));
+                }
+
+                // todo store new image size
+                message.setImage(imageOutputDir.getName() + "/" + imageFilename);
+              }
+              else
+              {
+                // todo
+              }
             }
             catch(IOException e)
             {
               LOGGER.error(String.format("can not copy image %s", sha1), e);
+            }
+            catch(ImageProcessingException e)
+            {
+              LOGGER.error("", e); // todo need more information
             }
           }
           else
@@ -145,6 +189,62 @@ public class MsgExportApplication
           }
         }
       });
+  }
+
+  private String getImageInformalName(String mimetype)
+  {
+    switch(mimetype.toLowerCase())
+    {
+      case "image/png":
+        return "png";
+      case "image/jpeg":
+      default:
+        return "jpeg";
+    }
+  }
+
+  private Scalr.Rotation[] calcRotations(int orientation)
+  {
+    switch(orientation)
+    {
+      default:
+      case 1:
+        return new Scalr.Rotation[]{};
+      case 2:
+        return new Scalr.Rotation[]{Scalr.Rotation.FLIP_HORZ};
+      case 3:
+        return new Scalr.Rotation[]{Scalr.Rotation.CW_180};
+      case 4:
+        return new Scalr.Rotation[]{Scalr.Rotation.FLIP_VERT};
+      case 5:
+        return new Scalr.Rotation[]{Scalr.Rotation.FLIP_HORZ, Scalr.Rotation.CW_270};
+      case 6:
+        return new Scalr.Rotation[]{Scalr.Rotation.CW_90};
+      case 7:
+        return new Scalr.Rotation[]{Scalr.Rotation.FLIP_HORZ, Scalr.Rotation.CW_90};
+      case 8:
+        return new Scalr.Rotation[]{Scalr.Rotation.CW_270};
+    }
+  }
+
+  private ImageData getImageData(File imageFile)
+    throws ImageProcessingException, IOException
+  {
+    BufferedImage image = ImageIO.read(imageFile);
+    if(image != null)
+    {
+      int orientation = 1; // normal, no rotation needed
+      Metadata metadata = ImageMetadataReader.readMetadata(imageFile.getAbsoluteFile());
+      ExifIFD0Directory exifIFD0Directory = metadata.getFirstDirectoryOfType(ExifIFD0Directory.class);
+      if(exifIFD0Directory != null && exifIFD0Directory.getInteger(ExifIFD0Directory.TAG_ORIENTATION) != null)
+      {
+        orientation = Math.min(Math.max(exifIFD0Directory.getInteger(ExifIFD0Directory.TAG_ORIENTATION), 1), 8);
+      }
+
+      return new ImageData(image, orientation);
+    }
+
+    return null;
   }
 
   private String getImageFilename(Message message, String name)
@@ -163,7 +263,7 @@ public class MsgExportApplication
   private List<Message> sortDate(Collection<Message> value)
   {
     List<Message> messages = new ArrayList<>(value);
-    Collections.sort(messages, (o1, o2) -> o1.getDate().compareTo(o2.getDate()));
+    Collections.sort(messages, Comparator.comparing(Message::getDate));
     return messages;
   }
 
@@ -186,6 +286,28 @@ public class MsgExportApplication
     public List<Message> getMessages()
     {
       return messages;
+    }
+  }
+
+  private static class ImageData
+  {
+    private final BufferedImage image;
+    private final int orientation;
+
+    public ImageData(BufferedImage image, int orientation)
+    {
+      this.image = image;
+      this.orientation = orientation;
+    }
+
+    public BufferedImage getImage()
+    {
+      return image;
+    }
+
+    public int getOrientation()
+    {
+      return orientation;
     }
   }
 }

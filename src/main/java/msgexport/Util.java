@@ -10,11 +10,6 @@ public class Util
 {
   private final static char[] hexArray = "0123456789abcdef".toCharArray();
 
-  public static String hashFilename(String filename, String domain)
-  {
-    return sha1(filename);
-  }
-
   public static String sha1(String text)
   {
     try
@@ -27,6 +22,12 @@ public class Util
     }
 
     return null;
+  }
+
+  public static String createFilename(String sha1)
+  {
+    // ios10 prefix sha1 filename
+    return sha1.substring(0, 2) + "/" + sha1;
   }
 
   private static String bytesToHex(byte[] bytes)

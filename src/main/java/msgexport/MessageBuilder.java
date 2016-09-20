@@ -22,7 +22,7 @@ public class MessageBuilder
   public static List<Message> readMessages(File backupDir, Contact contact)
     throws SQLException
   {
-    File smsBackupDB = new File(backupDir, SMS_DB);
+    File smsBackupDB = new File(backupDir, Util.createFilename(SMS_DB));
 
     if(smsBackupDB.exists() && smsBackupDB.isFile() && smsBackupDB.canRead())
     {

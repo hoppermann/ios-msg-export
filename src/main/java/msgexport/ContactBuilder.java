@@ -32,7 +32,7 @@ public class ContactBuilder
   public Set<Contact> readContacts(File backupDir)
     throws SQLException
   {
-    File contactBackupDB = new File(backupDir, CONTACT_DB);
+    File contactBackupDB = new File(backupDir, Util.createFilename(CONTACT_DB));
     if(contactBackupDB.exists() && contactBackupDB.isFile() && contactBackupDB.canRead())
     {
       Map<String, Contact> contactMap = new HashMap<>();
