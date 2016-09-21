@@ -11,7 +11,7 @@ public class Message
   private final String attachmentFilename;
   private final String attachmentMimetype;
   private final boolean sms;
-  private String image;
+  private String imageData;
 
   public Message(String uniqueID, Date date, int type, String text, boolean sms)
   {
@@ -64,13 +64,13 @@ public class Message
     return attachmentMimetype;
   }
 
-  public void setImage(String image)
+  public void setImageData(String imageData)
   {
-    this.image = image;
+    this.imageData = imageData;
   }
 
-  public String getImage()
+  public String getImageData()
   {
-    return image;
+    return imageData;
   }
 }

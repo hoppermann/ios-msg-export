@@ -12,12 +12,13 @@ import org.slf4j.LoggerFactory;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -86,27 +87,14 @@ public class MsgExportApplication
       {
         LOGGER.info(String.format("export %s", contact.getName()));
 
-        File contactBaseDir = new File(destDir, contact.getName());
-        contactBaseDir.mkdirs();
-
         if(hasAttachements(messages))
         {
-          File imageDestDir = new File(contactBaseDir, "images");
-          if(!imageDestDir.exists())
-          {
-            imageDestDir.mkdirs();
-          }
-          else if(!imageDestDir.canWrite())
-          {
-            throw new IllegalArgumentException(String.format("can not to write dest image directory '%s/images'", args[1]));
-          }
-
-          appendAttachements(backupDir, imageDestDir, messages);
+          appendAttachements(backupDir, messages);
         }
 
         try
         {
-          try (FileWriter fileWriter = new FileWriter(new File(contactBaseDir, String.format("%s.html", contact.getName()))))
+          try (FileWriter fileWriter = new FileWriter(new File(destDir, String.format("%s.html", contact.getName()))))
           {
             template.process(new ContactMessages(contact, sortDate(messages)), fileWriter);
           }
@@ -124,7 +112,7 @@ public class MsgExportApplication
     return messages.stream().anyMatch(message -> message.getAttachmentFilename() != null);
   }
 
-  private void appendAttachements(File backupDir, File imageOutputDir, List<Message> messages)
+  private void appendAttachements(File backupDir, List<Message> messages)
   {
     messages.forEach(
       message ->
@@ -142,36 +130,35 @@ public class MsgExportApplication
               ImageData imageData = getImageData(imageFile);
               if(imageData != null)
               {
-                String imageFilename = getImageFilename(message, sha1);
-
+                ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
                 if(imageData.getImage().getWidth() <= IMAGE_MAX_WIDTH && imageData.getOrientation() == 1)
                 {
-                  Files.copy(imageFile.toPath(), new File(imageOutputDir, imageFilename).toPath(), StandardCopyOption.REPLACE_EXISTING);
+                  Files.copy(imageFile.toPath(), byteArrayOutputStream);
                 }
                 else
                 {
-                  // todo copy image with an adjust size and orientation
-
                   BufferedImage image = imageData.getImage();
 
+                  // rotate to normal image orientation
                   for(Scalr.Rotation rotation : calcRotations(imageData.getOrientation()))
                   {
                     image = Scalr.rotate(image, rotation);
                   }
+                  // resize image to fit in HTML page and reduce size
                   if(imageData.getImage().getWidth() > IMAGE_MAX_WIDTH)
                   {
                     image = Scalr.resize(image, Scalr.Method.ULTRA_QUALITY, Scalr.Mode.FIT_TO_WIDTH, IMAGE_MAX_WIDTH);
                   }
 
-                  ImageIO.write(image, getImageInformalName(message.getAttachmentMimetype()), new File(imageOutputDir, imageFilename));
+                  ImageIO.write(image, getImageInformalName(message.getAttachmentMimetype()), byteArrayOutputStream);
                 }
 
-                // todo store new image size
-                message.setImage(imageOutputDir.getName() + "/" + imageFilename);
+                // store new image data as inline data
+                message.setImageData(createImageData(message.getAttachmentMimetype(), byteArrayOutputStream.toByteArray()));
               }
               else
               {
-                // todo
+                // todo handle some other data types
               }
             }
             catch(IOException e)
@@ -191,6 +178,11 @@ public class MsgExportApplication
       });
   }
 
+  private String createImageData(String mimetype, byte[] image)
+  {
+    return String.format("data:%s;base64,%s", mimetype, Base64.getEncoder().encodeToString(image));
+  }
+
   private String getImageInformalName(String mimetype)
   {
     switch(mimetype.toLowerCase())
@@ -203,6 +195,13 @@ public class MsgExportApplication
     }
   }
 
+  /**
+   * calculate needed rotations
+   *
+   * @param orientation the exif image ortation info
+   *
+   * @return an array with needed rotations
+   */
   private Scalr.Rotation[] calcRotations(int orientation)
   {
     switch(orientation)
@@ -245,19 +244,6 @@ public class MsgExportApplication
     }
 
     return null;
-  }
-
-  private String getImageFilename(Message message, String name)
-  {
-    switch(message.getAttachmentMimetype())
-    {
-      case "image/jpeg":
-        return name + ".jpeg";
-      case "image/png":
-        return name + ".png";
-      default:
-        return ".data";
-    }
   }
 
   private List<Message> sortDate(Collection<Message> value)

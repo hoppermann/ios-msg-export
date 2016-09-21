@@ -98,7 +98,7 @@
     <blockquote class="chat">
     <#list messages as message>
       <p class="${(message.type==0)?then("them", "me")} ${(message.type==0)?then("them", "me")}-${(message.sms)?then("sms", "iMessage")}">
-        <#if message.image??><img style="max-width: 300px" src="${message.image}"/></#if>
+        <#if message.imageData??><img style="max-width: 300px" src="${message.imageData}"/></#if>
       ${message.text}
         <br/>
         <span>${message.date?datetime}</span></p>
