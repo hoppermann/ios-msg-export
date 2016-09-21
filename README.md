@@ -1,9 +1,9 @@
 iOS message export
 ==================
 
-This small java application can export messages from a iOS backup.
+This small java application can export messages from a iOS 10 backup.
 Unfortunately, you have to have an unencrypted backup for reading the data.
-Also attached images will be exported.
+Also attached images will be included.
 
 The application does:
  - reads the contact database
@@ -29,11 +29,6 @@ Usage
         export-dir   - directory for the export files (optional)
 
 The ``country-code`` and ``area-code`` are needed to rectify the telephone numbers from the contact database.
-
-Issues
-======
-
-Rotated images are displayed only in Firefox correctly.
 
 License
 =======
